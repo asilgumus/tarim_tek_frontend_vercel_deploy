@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriSense AI - Yönetim Paneli</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2ecc71;
+            --secondary-color: #27ae60;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 50%, rgba(46, 204, 113, 0.05) 0%, transparent 100%);
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .card:hover { transform: translateY(-5px); }
+
+        h2 { color: var(--primary-color); margin-bottom: 1.5rem; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+        .id-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1.5rem 0;
+            color: #fff;
+            border: 1px dashed var(--primary-color);
+        }
+
+        input {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0,0,0,0.2);
+            color: white;
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 10px;
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        button:hover { background: var(--secondary-color); box-shadow: 0 0 20px var(--accent-glow); }
+
+        .video-wrapper {
+            grid-column: span 2;
+            margin-top: 2rem;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            display: none;
+            border: 2px solid var(--primary-color);
+            position: relative;
+        }
+
+        .video-wrapper img { width: 100%; height: 100%; object-fit: contain; }
+
+        .video-status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(231, 76, 60, 0.8);
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .video-wrapper { grid-column: span 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo"><i class="fas fa-leaf"></i> AGRISENSE</div>
+            <p style="color: #94a3b8;">Akıllı Tarım Cihaz Yönetim ve İzleme Portalı</p>
+        </header>
+
+        <div class="grid">
+            <!-- Cihaz Kayıt Bölümü -->
+            <div class="card">
+                <h2><i class="fas fa-plus-circle"></i> Cihaz Kaydet</h2>
+                <p style="color: #94a3b8; font-size: 0.9rem;">Yeni bir kamera için benzersiz ID oluşturun.</p>
+                <div id="id-area" style="display: none;">
+                    <div class="id-display" id="generated-id">----</div>
+                    <p style="color: #f1f5f9; font-size: 0.85rem; margin-bottom: 1rem;">
+                        <i class="fas fa-info-circle"></i> Bu ID'yi cihazınızdaki script'e ekleyin.
+                    </p>
+                </div>
+                <button onclick="registerDevice()" id="reg-btn">YENİ ID OLUŞTUR</button>
+            </div>
+
+            <!-- Kamera İzleme Bölümü -->
+            <div class="card">
+                <h2><i class="fas fa-search"></i> Kamera İzle</h2>
+                <p style="color: #94a3b8; font-size: 0.9rem;">İzlemek istediğiniz cihazın ID'sini girin.</p>
+                <input type="text" id="view-id" placeholder="Cihaz ID (Örn: 0412)" maxlength="4">
+                <button onclick="startViewing()">KAMERAYI AÇ</button>
+            </div>
+
+            <!-- Video Alanı -->
+            <div class="video-wrapper" id="video-wrapper">
+                <div class="video-status"><i class="fas fa-satellite-dish"></i> CANLI YAYIN: <span id="active-id-display"></span></div>
+                <img id="stream-img" src="" alt="Kamera Yayını">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function registerDevice() {
+            const btn = document.getElementById('reg-btn');
+            btn.disabled = true;
+            btn.innerText = "OLUŞTURULUYOR...";
+
+            try {
+                const response = await fetch('/register', { method: 'POST' });
+                const data = await response.json();
+                
+                document.getElementById('id-area').style.display = 'block';
+                document.getElementById('generated-id').innerText = data.device_id;
+                btn.innerText = "YENİ ID OLUŞTUR";
+                btn.disabled = false;
+            } catch (error) {
+                alert("Hata oluştu: " + error);
+                btn.disabled = false;
+                btn.innerText = "TEKRAR DENE";
+            }
+        }
+
+        function startViewing() {
+            const deviceId = document.getElementById('view-id').value.trim();
+            if (deviceId.length !== 4) {
+                alert("Lütfen 4 haneli geçerli bir ID girin.");
+                return;
+            }
+
+            const wrapper = document.getElementById('video-wrapper');
+            const streamImg = document.getElementById('stream-img');
+            const activeIdDisp = document.getElementById('active-id-display');
+
+            wrapper.style.display = 'block';
+            activeIdDisp.innerText = "ID " + deviceId;
+            streamImg.src = "/video_feed/" + deviceId;
+
+            // Scroll to video
+            wrapper.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
+

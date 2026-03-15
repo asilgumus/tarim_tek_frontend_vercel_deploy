@@ -204,7 +204,6 @@
         </div>
     </div>
 
-    <!-- Hidden elements for frame capture -->
     <video id="capture-video" autoplay playsinline style="display:none;"></video>
     <canvas id="capture-canvas" style="display:none;"></canvas>
 
@@ -212,15 +211,12 @@
         const BACKEND_URL = "https://tarimtekbackend3.loca.lt";
         let isStreaming = false;
         let streamDeviceId = null;
-        let currentStream = null; // Aktif kamera yayını referansı
+        let currentStream = null;
         let animationFrameId = null;
 
-        /**
-         * Eski kamera yayınını ve sonsuz döngüleri tertemiz kapatır.
-         * Çoklu ID oluşturulduğunda sistemin çökmesini veya kasmasını engeller.
-         */
+
         function stopExistingStream() {
-            isStreaming = false; 
+            isStreaming = false;
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 animationFrameId = null;
@@ -236,20 +232,18 @@
             btn.disabled = true;
             btn.innerText = "BAĞLANILIYOR...";
 
-            // Eğer arka planda açık bir yayın varsa kesinlikle durdur.
             stopExistingStream();
 
             try {
                 const response = await fetch(`${BACKEND_URL}/register`);
                 const data = await response.json();
-                
+
                 streamDeviceId = data.device_id;
                 document.getElementById('id-area').style.display = 'block';
                 document.getElementById('generated-id').innerText = streamDeviceId;
                 btn.innerText = "YENİ ID OLUŞTUR";
                 btn.disabled = false;
 
-                // OTOMATİK BAŞLAT: Temiz bir sayfa ile yeni yayını başlat
                 startBrowserStreaming(streamDeviceId);
             } catch (error) {
                 console.error(error);
@@ -265,9 +259,8 @@
             const context = canvas.getContext('2d');
 
             try {
-                // Sadece gerekli olanı yakala, çözünürlüğü abartma
-                currentStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 640, height: 480, frameRate: { ideal: 15 } } 
+                currentStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, frameRate: { ideal: 15 } }
                 });
                 video.srcObject = currentStream;
                 isStreaming = true;
@@ -277,19 +270,14 @@
                 const frameIntervalMs = 1000 / TARGET_FPS;
 
                 const sendFrameLoop = async (time) => {
-                    if (!isStreaming) return; // Döngü iptal edildiyse anında dur
-
-                    // requestAnimationFrame tarayıcı hızında çalışır (~60fps). 
-                    // Biz bunu 10fps'ye (veya belirlediğimiz değere) frenliyoruz.
+                    if (!isStreaming) return;
                     if (time - lastFrameTime >= frameIntervalMs) {
                         lastFrameTime = time;
 
-                        // Videoyu canvas'a çiz
                         canvas.width = video.videoWidth || 640;
                         canvas.height = video.videoHeight || 480;
                         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                        // PERFORMANS OPTİMİZASYONU: Kaliteyi 0.4'e düşür. (Ağ darboğazını çözer)
                         canvas.toBlob(async (blob) => {
                             if (blob && isStreaming) {
                                 try {
@@ -299,16 +287,14 @@
                                         mode: 'cors'
                                     });
                                 } catch (e) {
-                                    // Sadece kritik hataları bas, konsolu spam'leme
                                     if (e.name !== 'TypeError') {
                                         console.error("Kare gönderim hatası:", e);
                                     }
                                 }
                             }
-                        }, 'image/jpeg', 0.4); 
+                        }, 'image/jpeg', 0.4);
                     }
 
-                    // Sonraki kareyi planla (Tarayıcıyı dondurmaz)
                     if (isStreaming) {
                         animationFrameId = requestAnimationFrame(sendFrameLoop);
                     }
@@ -338,7 +324,7 @@
 
             wrapper.style.display = 'block';
             activeIdDisp.innerText = "ID " + deviceId;
-            
+
             streamImg.src = `${BACKEND_URL}/video_feed/${deviceId}`;
             wrapper.scrollIntoView({ behavior: 'smooth' });
         }
