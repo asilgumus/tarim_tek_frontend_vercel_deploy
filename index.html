@@ -208,38 +208,17 @@
     <video id="capture-video" autoplay playsinline style="display:none;"></video>
     <canvas id="capture-canvas" style="display:none;"></canvas>
 
-    <!-- Socket.IO Client -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const BACKEND_URL = "https://tarimtekbackend.loca.lt";
-        
-        // Socket.IO Bağlantısını Başlat
-        const socket = io(BACKEND_URL, {
-            // LocalTunnel'ın uyarı ekranına takılmamak için bu header ŞART
-            extraHeaders: {
-                "Bypass-Tunnel-Reminder": "true"
-            },
-            reconnectionAttempts: 10,
-            timeout: 20000
-        });
-
-        socket.on('connect', () => {
-            console.log("✅ Sunucuya WebSocket ile bağlanıldı! SID:", socket.id);
-        });
-
-        socket.on('disconnect', (reason) => {
-            console.warn("⚠️ WebSocket bağlantısı koptu:", reason);
-        });
-
-        socket.on('connect_error', (error) => {
-            console.error("❌ WebSocket bağlantı hatası:", error);
-        });
-
         let isStreaming = false;
         let streamDeviceId = null;
-        let currentStream = null; 
+        let currentStream = null; // Aktif kamera yayını referansı
         let animationFrameId = null;
 
+        /**
+         * Eski kamera yayınını ve sonsuz döngüleri tertemiz kapatır.
+         * Çoklu ID oluşturulduğunda sistemin çökmesini veya kasmasını engeller.
+         */
         function stopExistingStream() {
             isStreaming = false; 
             if (animationFrameId) {
@@ -257,10 +236,10 @@
             btn.disabled = true;
             btn.innerText = "BAĞLANILIYOR...";
 
+            // Eğer arka planda açık bir yayın varsa kesinlikle durdur.
             stopExistingStream();
 
             try {
-                // Kayıt işlemi hala HTTP üzerinden (çünkü sadece 1 kere yapılıyor)
                 const response = await fetch(`${BACKEND_URL}/register`);
                 const data = await response.json();
                 
@@ -270,6 +249,7 @@
                 btn.innerText = "YENİ ID OLUŞTUR";
                 btn.disabled = false;
 
+                // OTOMATİK BAŞLAT: Temiz bir sayfa ile yeni yayını başlat
                 startBrowserStreaming(streamDeviceId);
             } catch (error) {
                 console.error(error);
@@ -285,34 +265,50 @@
             const context = canvas.getContext('2d');
 
             try {
+                // Sadece gerekli olanı yakala, çözünürlüğü abartma
                 currentStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: 640, height: 480, frameRate: { ideal: 15 } } 
                 });
                 video.srcObject = currentStream;
                 isStreaming = true;
 
-                // Odaya Katıl (Yayıncı Olarak)
-                socket.emit('join', { id: deviceId });
-
                 let lastFrameTime = 0;
-                const TARGET_FPS = 15; // WebSockets çok hızlı olduğu için 15 FPS'e çıkarabiliriz
+                const TARGET_FPS = 10;
                 const frameIntervalMs = 1000 / TARGET_FPS;
 
                 const sendFrameLoop = async (time) => {
-                    if (!isStreaming) return;
+                    if (!isStreaming) return; // Döngü iptal edildiyse anında dur
 
+                    // requestAnimationFrame tarayıcı hızında çalışır (~60fps). 
+                    // Biz bunu 10fps'ye (veya belirlediğimiz değere) frenliyoruz.
                     if (time - lastFrameTime >= frameIntervalMs) {
                         lastFrameTime = time;
 
+                        // Videoyu canvas'a çiz
                         canvas.width = video.videoWidth || 640;
                         canvas.height = video.videoHeight || 480;
                         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                        // Base64 formatında alıp doğrudan Socket.IO ile Pushla
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-                        socket.emit('video_frame', { id: deviceId, image: dataUrl });
+                        // PERFORMANS OPTİMİZASYONU: Kaliteyi 0.4'e düşür. (Ağ darboğazını çözer)
+                        canvas.toBlob(async (blob) => {
+                            if (blob && isStreaming) {
+                                try {
+                                    await fetch(`${BACKEND_URL}/upload_frame/${deviceId}`, {
+                                        method: 'POST',
+                                        body: blob,
+                                        mode: 'cors'
+                                    });
+                                } catch (e) {
+                                    // Sadece kritik hataları bas, konsolu spam'leme
+                                    if (e.name !== 'TypeError') {
+                                        console.error("Kare gönderim hatası:", e);
+                                    }
+                                }
+                            }
+                        }, 'image/jpeg', 0.4); 
                     }
 
+                    // Sonraki kareyi planla (Tarayıcıyı dondurmaz)
                     if (isStreaming) {
                         animationFrameId = requestAnimationFrame(sendFrameLoop);
                     }
@@ -343,16 +339,7 @@
             wrapper.style.display = 'block';
             activeIdDisp.innerText = "ID " + deviceId;
             
-            // Odaya Katıl (İzleyici Olarak)
-            socket.emit('join', { id: deviceId });
-
-            // Sunucudan gelen canlı kareleri dinle
-            socket.on('video_stream', (data) => {
-                if (data && data.image) {
-                    streamImg.src = data.image; // Base64 görüntüyü doğrudan ekrana bas
-                }
-            });
-
+            streamImg.src = `${BACKEND_URL}/video_feed/${deviceId}`;
             wrapper.scrollIntoView({ behavior: 'smooth' });
         }
     </script>
