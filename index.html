@@ -215,7 +215,10 @@
         
         // Socket.IO Bağlantısını Başlat
         const socket = io(BACKEND_URL, {
-            transports: ['websocket', 'polling'], // WebSocket'i zorla, olmazsa polling'e düş
+            // LocalTunnel'ın uyarı ekranına takılmamak için bu header ŞART
+            extraHeaders: {
+                "Bypass-Tunnel-Reminder": "true"
+            },
             reconnectionAttempts: 10,
             timeout: 20000
         });
